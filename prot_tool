@@ -1,0 +1,134 @@
+#!/usr/bin/env ruby
+
+=begin
+    prot_tool is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+=end
+
+#per fare decimali
+def arrotonda (numero, decimali)
+	s = (10 ** decimali)
+	p = (numero * s + 0.5).to_i
+	return p.to_f/s
+end
+
+def contaAA (gruppo, aa)
+	return gruppo.count(aa)
+end
+
+# Inserire la sequenza
+puts "Give a name at your protein."
+nomeSequenza = gets.chomp
+
+puts "Paste your sequence (single letter code)."
+input = gets.chomp
+
+aminoAcidi = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y", "Z", "-"]
+inputArray = []
+
+# Fare formato FASTA
+input.length.times do |z|
+	inputArray << input[z].upcase if aminoAcidi.include?(input[z].upcase)
+end
+
+puts "\n"
+puts "Your sequence in FASTA format:"
+puts ">" + nomeSequenza + "\n"
+puts inputArray.join + "\n" * 2
+
+# Numero amino acidi
+puts "Number of amino acids: " + inputArray.size.to_s
+puts "\n"
+
+# Peso molecolare
+mWaminoacidi = [89.09 - 18.0, 132.61 - 18, 121.16 - 18, 133.10 - 18, 147.13 - 18, 165.19 - 18, 75.07 - 18, 155.16 - 18, 131.18 - 18, 146.19 - 18, 131.18 - 18, 149.21 - 18, 132.12 - 18, 115.13 - 18, 146.15 - 18, 174.20 - 18, 105.09 - 18, 119.12 - 18, 117.15 - 18, 204.23 - 18, 115, 181.19 - 18, 146.64 - 18, 1]
+aminoAcidiMWhash = {}
+aminoAcidi.each_with_index {|k,i|aminoAcidiMWhash[k] = mWaminoacidi[i]}
+
+somma = 18.0
+
+inputArray.each do |aminoacido|
+	v = aminoAcidiMWhash[aminoacido]
+	somma += v
+end
+
+puts "Molecular weight: " + (arrotonda somma, 1).to_s
+puts "\n"
+
+#amino acid composition
+
+numeroAA = []
+aminoAcidi.each do |q|
+	q = contaAA inputArray, q
+	numeroAA << q
+end
+
+aaComposition = {}
+aminoAcidi.each_with_index {|k,i|aaComposition[k] = numeroAA[i]}
+
+puts "Amino acids composition:\n"
+
+numeroAAper = []
+numeroAA.each do |t|
+	y = (100.0 * t)/inputArray.size
+	numeroAAper << y
+end
+
+aaCompositionper = {}
+aminoAcidi.each_with_index {|k,i|aaCompositionper[k] = numeroAAper[i]}
+
+aaComposition.each {|key, value| puts "#{key}      #{value}" + "      " + (arrotonda aaCompositionper[key], 1).to_s}
+
+puts "\n"
+
+# Total number of negatively/positively charged residues
+
+puts "Total number of negatively charged residues (D + E): " + ((contaAA inputArray, "E") + (contaAA inputArray, "D")).to_s
+puts "Total number of positively charged residues (R + K): " + ((contaAA inputArray, "R") + (contaAA inputArray, "K")).to_s
+
+
+# Theoretical pI
+# per economizzare in tempo messo fuori la funzione contaAA così la chiama una volta sola e non ogni volta che incrementa.ò
+
+qn2nom = contaAA inputArray, "D"
+qn3nom = contaAA inputArray, "E"
+qn4nom = contaAA inputArray, "C"
+qn5nom = contaAA inputArray, "Y"
+qp1nom = contaAA inputArray, "H"
+qp3nom = contaAA inputArray, "K"
+qp4nom = contaAA inputArray, "R"
+
+STEP = 0.01
+pH = -STEP
+PHMAX = 14.0
+nq = 1.0
+while nq > 0.0 && (pH += STEP) <= PHMAX do
+	qn1 = -1/(1+10**(3.65-pH))
+	qn2 = -qn2nom/(1+10**(3.9-pH))
+	qn3 = -(qn3nom)/(1+10**(4.07-pH))
+	qn4 = -(qn4nom)/(1+10**(8.18-pH))
+	qn5 = -(qn5nom)/(1+10**(10.46-pH))
+	qp1 = (qp1nom)/(1+10**(pH-6.04))
+	qp2 = 1/(1+10**(pH-8.2))
+	qp3 = (qp3nom)/(1+10**(pH-10.54))
+	qp4 = (qp4nom)/(1+10**(pH-12.48))
+
+	nq = qn1+qn2+qn3+qn4+qn5+qp1+qp2+qp3+qp4
+end
+
+if pH > PHMAX then
+	puts "Something is wrong - pH is higher than #{PHMAX}"
+else
+	puts arrotonda pH, 3
+end
+
